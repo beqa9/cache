@@ -16,31 +16,32 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
-    private final ProductMapper productMapper;
 
     @GetMapping
     public List<ProductModel> getAll() {
-        return productMapper.toModelList(productService.getAllProducts());
+        return productService.getAllProducts();
     }
 
     @GetMapping("/{id}")
     public ProductModel getById(@PathVariable Long id) {
-        return productMapper.toModel(productService.getProductById(id));
+        return productService.getProductById(id);
     }
 
     @PostMapping
     public ProductModel create(@RequestBody ProductModel model) {
-        return productMapper.toModel(productService.createProduct(model));
+        return productService.createProduct(model);
     }
 
     @PutMapping("/{id}")
     public ProductModel update(
             @PathVariable Long id,
-            @RequestBody ProductModel model) {
-        return productMapper.toModel(productService.updateProduct(id, model));
+            @RequestBody ProductModel model
+    ) {
+        return productService.updateProduct(id, model);
     }
 
     @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
         productService.deleteProduct(id);
     }
@@ -48,14 +49,14 @@ public class ProductController {
     @GetMapping("/search")
     public List<ProductModel> search(
             @RequestParam(required = false) String name,
-            @RequestParam(required = false) String category) {
-
+            @RequestParam(required = false) String category
+    ) {
         if (name != null) {
-            return productMapper.toModelList(productService.searchByName(name));
+            return productService.searchByName(name);
         }
 
         if (category != null) {
-            return productMapper.toModelList(productService.searchByCategory(category));
+            return productService.searchByCategory(category);
         }
 
         throw new ResponseStatusException(

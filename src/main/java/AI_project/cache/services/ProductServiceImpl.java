@@ -1,6 +1,7 @@
 package AI_project.cache.services;
 
 import AI_project.cache.entities.Product;
+import AI_project.cache.mappers.ProductMapper;
 import AI_project.cache.models.ProductModel;
 import AI_project.cache.repositories.ProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,75 +18,76 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
-
+    private final ProductMapper productMapper;
 
     @Override
     @Transactional(readOnly = true)
     @Cacheable(value = "product-list")
-    public List<Product> getAllProducts() {
-        return productRepository.findAll();
+    public List<ProductModel> getAllProducts() {
+        return productMapper.toModelList(productRepository.findAll());
     }
 
     @Override
     @Transactional(readOnly = true)
     @Cacheable(value = "products", key = "#id")
-    public Product getProductById(Long id) {
-        return productRepository.findById(id)
+    public ProductModel getProductById(Long id) {
+        Product product = productRepository.findById(id)
                 .orElseThrow(() ->
                         new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+        return productMapper.toModel(product);
     }
 
-
     @Override
-    @Transactional
     @CachePut(value = "products", key = "#result.id")
     @CacheEvict(value = { "product-list", "product-search" }, allEntries = true)
-    public Product createProduct(ProductModel model) {
-        Product product = new Product();
-        product.setName(model.name());
-        product.setDescription(model.description());
-        product.setCategory(model.category());
-        product.setPrice(model.price());
-        product.setStockQuantity(model.stockQuantity());
-        return productRepository.save(product);
+    public ProductModel createProduct(ProductModel model) {
+        Product product = productMapper.toEntity(model);
+        Product saved = productRepository.save(product);
+        return productMapper.toModel(saved);
     }
 
-
     @Override
-    @Transactional
     @CachePut(value = "products", key = "#id")
     @CacheEvict(value = { "product-list", "product-search" }, allEntries = true)
-    public Product updateProduct(Long id, ProductModel model) {
-        Product product = getProductById(id);
+    public ProductModel updateProduct(Long id, ProductModel model) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+
         product.setName(model.name());
         product.setDescription(model.description());
         product.setCategory(model.category());
         product.setPrice(model.price());
         product.setStockQuantity(model.stockQuantity());
-        return productRepository.save(product);
+
+        return productMapper.toModel(productRepository.save(product));
     }
 
     @Override
-    @Transactional
     @CacheEvict(value = { "products", "product-list", "product-search" }, key = "#id", allEntries = true)
     public void deleteProduct(Long id) {
-        productRepository.delete(getProductById(id));
+        productRepository.deleteById(id);
     }
 
     @Override
     @Transactional(readOnly = true)
     @Cacheable(value = "product-search", key = "'name:' + #name")
-    public List<Product> searchByName(String name) {
-        return productRepository.findByNameContainingIgnoreCase(name);
+    public List<ProductModel> searchByName(String name) {
+        return productMapper.toModelList(
+                productRepository.findByNameContainingIgnoreCase(name)
+        );
     }
 
     @Override
     @Transactional(readOnly = true)
     @Cacheable(value = "product-search", key = "'category:' + #category")
-    public List<Product> searchByCategory(String category) {
-        return productRepository.findByCategoryIgnoreCase(category);
+    public List<ProductModel> searchByCategory(String category) {
+        return productMapper.toModelList(
+                productRepository.findByCategoryIgnoreCase(category)
+        );
     }
 }

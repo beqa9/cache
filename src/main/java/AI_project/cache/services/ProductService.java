@@ -7,17 +7,17 @@ import java.util.List;
 
 public interface ProductService {
 
-    List<Product> getAllProducts();
+    List<ProductModel> getAllProducts();
 
-    Product getProductById(Long id);
+    ProductModel getProductById(Long id);
 
-    Product createProduct(ProductModel model);
+    ProductModel createProduct(ProductModel model);
 
-    Product updateProduct(Long id, ProductModel model);
+    ProductModel updateProduct(Long id, ProductModel model);
 
     void deleteProduct(Long id);
 
-    List<Product> searchByName(String name);
+    List<ProductModel> searchByName(String name);
 
-    List<Product> searchByCategory(String category);
+    List<ProductModel> searchByCategory(String category);
 }
