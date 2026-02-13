@@ -1,8 +1,10 @@
 package AI_project.cache.redis;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -10,65 +12,34 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 
 @Configuration
 @EnableCaching
 public class RedisConfig {
 
     @Bean
-    public ObjectMapper redisObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.findAndRegisterModules();
+    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
 
-        mapper.activateDefaultTyping(
-                LaissezFaireSubTypeValidator.instance,
-                ObjectMapper.DefaultTyping.NON_FINAL,
-                JsonTypeInfo.As.PROPERTY
-        );
+        ObjectMapper mapper = JsonMapper.builder()
+                .activateDefaultTyping(
+                        LaissezFaireSubTypeValidator.instance,
+                        ObjectMapper.DefaultTyping.NON_FINAL
+                )
+                .addModule(new JavaTimeModule())
+                .build();
 
-        return mapper;
-    }
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(
-            RedisConnectionFactory connectionFactory,
-            ObjectMapper redisObjectMapper
-    ) {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
+        Jackson2JsonRedisSerializer<Object> serializer =
+                new Jackson2JsonRedisSerializer<>(Object.class);
+        serializer.setObjectMapper(mapper);
 
-        GenericJackson2JsonRedisSerializer serializer =
-                new GenericJackson2JsonRedisSerializer(redisObjectMapper);
-
-        template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(serializer);
-        template.setHashKeySerializer(new StringRedisSerializer());
-        template.setHashValueSerializer(serializer);
-
-        template.afterPropertiesSet();
-        return template;
-    }
-
-    @Bean
-    public CacheManager cacheManager(
-            RedisConnectionFactory connectionFactory,
-            ObjectMapper redisObjectMapper
-    ) {
-
-        GenericJackson2JsonRedisSerializer serializer =
-                new GenericJackson2JsonRedisSerializer(redisObjectMapper);
-
-        RedisCacheConfiguration defaultConfig =
+        RedisCacheConfiguration config =
                 RedisCacheConfiguration.defaultCacheConfig()
-                        .entryTtl(Duration.ofMinutes(10))
                         .serializeKeysWith(
                                 RedisSerializationContext.SerializationPair
                                         .fromSerializer(new StringRedisSerializer())
@@ -78,15 +49,8 @@ public class RedisConfig {
                                         .fromSerializer(serializer)
                         );
 
-        Map<String, RedisCacheConfiguration> configs = new HashMap<>();
-        configs.put("products", defaultConfig.entryTtl(Duration.ofMinutes(10)));
-        configs.put("product-list", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        configs.put("product-search", defaultConfig.entryTtl(Duration.ofMinutes(3)));
-        configs.put("countries", defaultConfig.entryTtl(Duration.ofHours(1)));
-
         return RedisCacheManager.builder(connectionFactory)
-                .cacheDefaults(defaultConfig)
-                .withInitialCacheConfigurations(configs)
+                .cacheDefaults(config)
                 .build();
     }
 }
