@@ -23,27 +23,25 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final ProductMapper productMapper;
+    private final ProductCacheService productCacheService;
+
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "product-list")
     public List<ProductModel> getAllProducts() {
-        return productMapper.toModelList(productRepository.findAll());
+        return productMapper.toModelList(getAllProductsEntity());
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "products", key = "#id")
     public ProductModel getProductById(Long id) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
-        return productMapper.toModel(product);
+        return productMapper.toModel(
+                productCacheService.getProductEntityById(id)
+        );
     }
 
     @Override
-    @CachePut(value = "products", key = "#result.id")
-    @CacheEvict(value = { "product-list", "product-search" }, allEntries = true)
+    @CacheEvict(value = { "products", "product-list", "product-search" }, allEntries = true)
     public ProductModel createProduct(ProductModel model) {
         Product product = productMapper.toEntity(model);
         Product saved = productRepository.save(product);
@@ -51,43 +49,55 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @CachePut(value = "products", key = "#id")
-    @CacheEvict(value = { "product-list", "product-search" }, allEntries = true)
+    @CacheEvict(value = { "products", "product-list", "product-search" }, allEntries = true)
     public ProductModel updateProduct(Long id, ProductModel model) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
-
+        Product product = getProductEntityById(id);
         product.setName(model.name());
         product.setDescription(model.description());
         product.setCategory(model.category());
         product.setPrice(model.price());
         product.setStockQuantity(model.stockQuantity());
-
         return productMapper.toModel(productRepository.save(product));
     }
 
     @Override
-    @CacheEvict(value = { "products", "product-list", "product-search" }, key = "#id", allEntries = true)
+    @CacheEvict(value = { "products", "product-list", "product-search" }, allEntries = true)
     public void deleteProduct(Long id) {
-        productRepository.deleteById(id);
+        productRepository.delete(getProductEntityById(id));
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "product-search", key = "'name:' + #name")
     public List<ProductModel> searchByName(String name) {
-        return productMapper.toModelList(
-                productRepository.findByNameContainingIgnoreCase(name)
-        );
+        return productMapper.toModelList(searchByNameEntity(name));
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "product-search", key = "'category:' + #category")
     public List<ProductModel> searchByCategory(String category) {
-        return productMapper.toModelList(
-                productRepository.findByCategoryIgnoreCase(category)
-        );
+        return productMapper.toModelList(searchByCategoryEntity(category));
+    }
+
+    @Cacheable(value = "product-list")
+    public List<Product> getAllProductsEntity() {
+        return productRepository.findAll();
+    }
+
+    @Cacheable(value = "products", key = "#id")
+    public Product getProductEntityById(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Product not found"
+                ));
+    }
+
+    @Cacheable(value = "product-search", key = "'name:' + #name")
+    public List<Product> searchByNameEntity(String name) {
+        return productRepository.findByNameContainingIgnoreCase(name);
+    }
+
+    @Cacheable(value = "product-search", key = "'category:' + #category")
+    public List<Product> searchByCategoryEntity(String category) {
+        return productRepository.findByCategoryIgnoreCase(category);
     }
 }
