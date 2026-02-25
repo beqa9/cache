@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import AI_project.cache.services.ProductEventPublisher;
+import AI_project.cache.services.ProductEvent;
 import java.util.List;
 
 
@@ -24,6 +26,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final ProductMapper productMapper;
     private final ProductCacheService productCacheService;
+    private final ProductEventPublisher publisher;
 
 
     @Override
@@ -45,6 +48,9 @@ public class ProductServiceImpl implements ProductService {
     public ProductModel createProduct(ProductModel model) {
         Product product = productMapper.toEntity(model);
         Product saved = productRepository.save(product);
+
+        publisher.publish(new ProductEvent(saved.getId(), "CREATED"));
+
         return productMapper.toModel(saved);
     }
 
@@ -52,20 +58,30 @@ public class ProductServiceImpl implements ProductService {
     @CacheEvict(value = { "products", "product-list", "product-search" }, allEntries = true)
     public ProductModel updateProduct(Long id, ProductModel model) {
         Product product = getProductEntityById(id);
+
         product.setName(model.name());
         product.setDescription(model.description());
         product.setCategory(model.category());
         product.setPrice(model.price());
         product.setStockQuantity(model.stockQuantity());
-        return productMapper.toModel(productRepository.save(product));
+
+        Product updated = productRepository.save(product);
+
+        publisher.publish(new ProductEvent(updated.getId(), "UPDATED"));
+
+        return productMapper.toModel(updated);
     }
 
     @Override
     @CacheEvict(value = { "products", "product-list", "product-search" }, allEntries = true)
     public void deleteProduct(Long id) {
-        productRepository.delete(getProductEntityById(id));
-    }
+        Product product = getProductEntityById(id);
 
+        productRepository.delete(product); // soft delete
+
+        publisher.publish(new ProductEvent(id, "DELETED"));
+    }
+ 
     @Override
     @Transactional(readOnly = true)
     public List<ProductModel> searchByName(String name) {
