@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
-public interface MunicipalityRepository extends JpaRepository<Municipality, Long> {
+public interface MunicipalityRepository extends BaseRepository<Municipality> {
 
     List<Municipality> findByCityId(Long cityId);
 }
