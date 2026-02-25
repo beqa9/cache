@@ -3,6 +3,8 @@ package AI_project.cache.entities;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -11,13 +13,9 @@ import java.time.OffsetDateTime;
 @Setter
 @Entity
 @Table(name = "products")
-public class Product {
-
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+@SQLDelete(sql = "UPDATE products SET deleted = true WHERE id = ?")
+@SQLRestriction("deleted = false")
+public class Product extends BaseEntity {
 
     @Column(nullable = false)
     private String name;
@@ -36,7 +34,4 @@ public class Product {
     @Column(name = "stock_quantity", nullable = false)
     private int stockQuantity;
 
-
-    @Column(name = "created_at", updatable = false)
-    private OffsetDateTime createdAt;
 }

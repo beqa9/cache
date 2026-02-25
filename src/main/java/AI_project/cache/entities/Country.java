@@ -7,16 +7,16 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Getter
 @Setter
 @Table(name = "countries")
-public class Country {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@SQLDelete(sql = "UPDATE products SET deleted = true WHERE id = ?")
+@SQLRestriction("deleted = false")
+public class Country extends BaseEntity{
 
     @Column(nullable = false, unique = true)
     private String name;
