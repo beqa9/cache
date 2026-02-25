@@ -1,4 +1,4 @@
-package AI_project.cache.redis;
+package AI_project.cache.configs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
